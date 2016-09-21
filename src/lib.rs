@@ -7,7 +7,6 @@ use std::fs::{File};
 use std::marker::{PhantomData};
 use std::mem::{size_of};
 use std::ops::{Deref, DerefMut};
-use std::rc::{Rc};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 use std::sync::{Arc};
 
@@ -79,13 +78,13 @@ impl<T> DerefMut for MemoryMap<T> where T: Copy {
 }
 
 pub struct SharedMem<T> {
-  buf:  Rc<Box<Deref<Target=[T]>>>,
+  buf:  Arc<Deref<Target=[T]>>,
 }
 
 impl<T> SharedMem<T> {
   pub fn new<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> {
-    let buf: Box<Deref<Target=[T]>> = Box::new(buf);
-    SharedMem{buf: Rc::new(buf)}
+    let buf: Arc<Deref<Target=[T]>> = Arc::new(buf);
+    SharedMem{buf: buf}
   }
 
   pub fn as_slice(&self) -> SharedSlice<T> {
@@ -98,14 +97,33 @@ impl<T> SharedMem<T> {
   }
 
   pub fn slice(&self, from_idx: usize, to_idx: usize) -> SharedSlice<T> {
-    let s: &[T] = &**self.buf;
-    let buf_ptr = s.as_ptr();
-    let buf_len = s.len();
-    assert!(from_idx < buf_len);
-    assert!(to_idx - from_idx < buf_len);
+    let s: &[T] = &(**self.buf)[from_idx .. to_idx];
+    let s_ptr = s.as_ptr();
+    let s_len = s.len();
     SharedSlice{
-      ptr:  unsafe { buf_ptr.offset(from_idx as isize) },
-      len:  to_idx - from_idx,
+      ptr:  s_ptr,
+      len:  s_len,
+      buf:  self.buf.clone(),
+    }
+  }
+
+  pub fn unsafe_as_slice(&self) -> RacingSlice<T> {
+    let new_buf = self.buf.clone();
+    let s: &[T] = &**self.buf;
+    RacingSlice{
+      ptr:  s.as_ptr() as *mut T,
+      len:  s.len(),
+      buf:  new_buf,
+    }
+  }
+
+  pub fn unsafe_slice(&self, from_idx: usize, to_idx: usize) -> RacingSlice<T> {
+    let s: &[T] = &(**self.buf)[from_idx .. to_idx];
+    let s_ptr = s.as_ptr() as *mut T;
+    let s_len = s.len();
+    RacingSlice{
+      ptr:  s_ptr,
+      len:  s_len,
       buf:  self.buf.clone(),
     }
   }
@@ -115,7 +133,7 @@ impl<T> SharedMem<T> {
 pub struct SharedSlice<T> {
   ptr:  *const T,
   len:  usize,
-  buf:  Rc<Box<Deref<Target=[T]>>>,
+  buf:  Arc<Deref<Target=[T]>>,
 }
 
 impl<T> Deref for SharedSlice<T> {
@@ -126,7 +144,27 @@ impl<T> Deref for SharedSlice<T> {
   }
 }
 
-pub struct RwSharedMem<T> {
+pub struct RacingSlice<T> {
+  ptr:  *mut T,
+  len:  usize,
+  buf:  Arc<Deref<Target=[T]>>,
+}
+
+impl<T> RacingSlice<T> {
+  pub fn as_ptr(&self) -> *const T {
+    self.ptr
+  }
+
+  pub fn as_mut_ptr(&mut self) -> *mut T {
+    self.ptr
+  }
+
+  pub fn len(&self) -> usize {
+    self.len
+  }
+}
+
+/*pub struct RwSharedMem<T> {
   buf:  Rc<RefCell<Box<DerefMut<Target=[T]>>>>,
 }
 
@@ -189,9 +227,9 @@ impl<T> DerefMut for MutSharedSlice<T> {
   fn deref_mut(&mut self) -> &mut [T] {
     unsafe { from_raw_parts_mut(self.ptr, self.len) }
   }
-}
+}*/
 
-pub struct ConcurrentMem<T> {
+/*pub struct ConcurrentMem<T> {
   buf:  Arc<Box<Deref<Target=[T]>>>,
 }
 
@@ -226,27 +264,7 @@ pub struct ConcurrentSlice<T> {
   ptr:  *const T,
   len:  usize,
   buf:  Arc<Box<Deref<Target=[T]>>>,
-}
-
-pub struct RacingSlice<T> {
-  ptr:  *mut T,
-  len:  usize,
-  buf:  Arc<Box<Deref<Target=[T]>>>,
-}
-
-impl<T> RacingSlice<T> {
-  pub fn as_ptr(&self) -> *const T {
-    self.ptr
-  }
-
-  pub fn as_mut_ptr(&mut self) -> *mut T {
-    self.ptr
-  }
-
-  pub fn len(&self) -> usize {
-    self.len
-  }
-}
+}*/
 
 pub fn test() -> SharedMem<u8> {
   let mem: SharedMem<u8> = SharedMem::new(vec![]);
