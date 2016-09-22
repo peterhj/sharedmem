@@ -2,11 +2,12 @@ extern crate memmap;
 
 use memmap::{Mmap, Protection};
 
-use std::cell::{RefCell};
+use std::cell::{RefCell, Ref, RefMut};
 use std::fs::{File};
 use std::marker::{PhantomData};
 use std::mem::{size_of};
 use std::ops::{Deref, DerefMut};
+use std::rc::{Rc};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 use std::sync::{Arc};
 
@@ -77,6 +78,55 @@ impl<T> DerefMut for MemoryMap<T> where T: Copy {
   }
 }
 
+#[derive(Clone)]
+pub struct RwMem<T> {
+  buf:  Rc<RefCell<DerefMut<Target=[T]>>>,
+}
+
+impl<T> RwMem<T> {
+  pub fn new<Buf>(buf: Buf) -> RwMem<T> where Buf: 'static + DerefMut<Target=[T]> {
+    let buf: Rc<RefCell<DerefMut<Target=[T]>>> = Rc::new(RefCell::new(buf));
+    RwMem{buf: buf}
+  }
+
+  pub fn borrow(&self) -> Ref<[T]> {
+    Ref::map(self.buf.borrow(), |s| &s[ .. ])
+  }
+
+  pub fn borrow_mut(&self) -> RefMut<[T]> {
+    RefMut::map(self.buf.borrow_mut(), |s| &mut s[ .. ])
+  }
+
+  pub fn as_slice(&self) -> RwSlice<T> {
+    let s: &[T] = &**self.buf.borrow();
+    RwSlice{
+      //ptr:  s.as_ptr(),
+      //len:  s.len(),
+      from: 0,
+      to:   s.len(),
+      buf:  self.buf.clone(),
+    }
+  }
+}
+
+#[derive(Clone)]
+pub struct RwSlice<T> {
+  from: usize,
+  to:   usize,
+  buf:  Rc<RefCell<DerefMut<Target=[T]>>>,
+}
+
+impl<T> RwSlice<T> {
+  pub fn borrow<'a>(&'a self) -> Ref<'a, [T]> {
+    Ref::map(self.buf.borrow(), |s| &s[self.from .. self.to])
+  }
+
+  pub fn borrow_mut(&self) -> RefMut<[T]> {
+    RefMut::map(self.buf.borrow_mut(), |s| &mut s[self.from .. self.to])
+  }
+}
+
+#[derive(Clone)]
 pub struct SharedMem<T> {
   buf:  Arc<Deref<Target=[T]>>,
 }
