@@ -11,6 +11,8 @@ use std::rc::{Rc};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 use std::sync::{Arc};
 
+pub mod sync;
+
 pub struct MemoryMap<T> where T: Copy {
   file: Option<File>,
   map:  Mmap,
