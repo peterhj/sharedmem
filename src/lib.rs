@@ -188,6 +188,22 @@ pub struct SharedSlice<T> {
   buf:  Arc<Deref<Target=[T]>>,
 }
 
+impl<T> SharedSlice<T> {
+  pub fn slice(self, from_idx: usize, to_idx: usize) -> SharedSlice<T> {
+    /*assert!(from_idx <= self.len);
+    assert!(from_idx <= to_idx);
+    assert!(to_idx <= self.len);*/
+    let s = &unsafe { from_raw_parts(self.ptr, self.len) }[from_idx .. to_idx];
+    SharedSlice{
+      //ptr:  self.ptr.offset(from_idx as isize),
+      //len:  to_idx - from_idx,
+      ptr:  s.as_ptr(),
+      len:  s.len(),
+      buf:  self.buf,
+    }
+  }
+}
+
 impl<T> Deref for SharedSlice<T> {
   type Target = [T];
 

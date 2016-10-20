@@ -16,14 +16,14 @@ impl SpinBarrier {
   }
 
   pub fn wait(&self) -> bool {
-    let prev_epoch = self.epoch.load(Ordering::Acquire);
-    let tid = self.counter.fetch_add(1, Ordering::AcqRel);
+    let prev_epoch = self.epoch.load(Ordering::SeqCst);
+    let tid = self.counter.fetch_add(1, Ordering::SeqCst);
     if tid == self.num_thrs - 1 {
-      self.counter.store(0, Ordering::Release);
-      self.epoch.fetch_add(1, Ordering::AcqRel);
+      self.counter.store(0, Ordering::SeqCst);
+      self.epoch.fetch_add(1, Ordering::SeqCst);
       true
     } else {
-      while self.epoch.load(Ordering::Acquire) == prev_epoch {
+      while self.epoch.load(Ordering::SeqCst) == prev_epoch {
       }
       false
     }
