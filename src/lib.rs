@@ -130,12 +130,12 @@ impl<T> RwSlice<T> {
 
 #[derive(Clone)]
 pub struct SharedMem<T> {
-  buf:  Arc<Deref<Target=[T]>>,
+  buf:  Arc<Deref<Target=[T]> + Send + Sync>,
 }
 
 impl<T> SharedMem<T> {
-  pub fn new<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> {
-    let buf: Arc<Deref<Target=[T]>> = Arc::new(buf);
+  pub fn new<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> + Send + Sync {
+    let buf: Arc<Deref<Target=[T]> + Send + Sync> = Arc::new(buf);
     SharedMem{buf: buf}
   }
 
