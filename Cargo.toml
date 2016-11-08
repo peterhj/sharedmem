@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Peter Jin <peterhaijin@gmail.com>"]
 license = "BSD-2-Clause"
 description = "Shared memory primitives."
+repository = "https://github.com/peterhj/libsharedmem"
 keywords = ["shared", "memory", "shm", "shmem"]
 readme = "README.md"
 
