@@ -14,7 +14,7 @@ use std::sync::{Arc};
 pub mod sync;
 
 pub struct MemoryMap<T> where T: Copy {
-  file: Option<File>,
+  _fd:  Option<File>,
   map:  Mmap,
   _mrk: PhantomData<T>,
 }
@@ -26,7 +26,7 @@ impl MemoryMap<u8> {
       Err(e) => panic!("failed to mmap buffer: {:?}", e),
     };
     Ok(MemoryMap{
-      file: Some(file),
+      _fd:  Some(file),
       map:  map,
       _mrk: PhantomData,
     })
@@ -43,12 +43,12 @@ impl<T> Deref for MemoryMap<T> where T: Copy {
 }
 
 pub struct RwMemoryMap<T> where T: Copy {
-  file: Option<File>,
+  _fd:  Option<File>,
   map:  Mmap,
   _mrk: PhantomData<T>,
 }
 
-impl RwMemoryMap<u8> {
+/*impl RwMemoryMap<u8> {
   pub fn open_with_offset(file: File, offset: usize, length: usize) -> Result<MemoryMap<u8>, ()> {
     unimplemented!();
   }
@@ -62,7 +62,7 @@ impl<T> RwMemoryMap<T> where T: Copy {
   pub fn freeze(self) -> MemoryMap<T> {
     unimplemented!();
   }
-}
+}*/
 
 impl<T> Deref for RwMemoryMap<T> where T: Copy {
   type Target = [T];
@@ -73,7 +73,7 @@ impl<T> Deref for RwMemoryMap<T> where T: Copy {
   }
 }
 
-impl<T> DerefMut for MemoryMap<T> where T: Copy {
+impl<T> DerefMut for RwMemoryMap<T> where T: Copy {
   fn deref_mut(&mut self) -> &mut [T] {
     let mut raw_s = unsafe { self.map.as_mut_slice() };
     unsafe { from_raw_parts_mut(raw_s.as_mut_ptr() as *mut T, raw_s.len() / size_of::<T>()) }
@@ -102,8 +102,6 @@ impl<T> RwMem<T> {
   pub fn as_slice(&self) -> RwSlice<T> {
     let s: &[T] = &**self.buf.borrow();
     RwSlice{
-      //ptr:  s.as_ptr(),
-      //len:  s.len(),
       from: 0,
       to:   s.len(),
       buf:  self.buf.clone(),
@@ -159,7 +157,7 @@ impl<T> SharedMem<T> {
     }
   }
 
-  pub fn unsafe_as_slice(&self) -> RacingSlice<T> {
+  /*pub fn unsafe_as_slice(&self) -> RacingSlice<T> {
     let new_buf = self.buf.clone();
     let s: &[T] = &**self.buf;
     RacingSlice{
@@ -178,7 +176,7 @@ impl<T> SharedMem<T> {
       len:  s_len,
       buf:  self.buf.clone(),
     }
-  }
+  }*/
 }
 
 #[derive(Clone)]
@@ -190,13 +188,8 @@ pub struct SharedSlice<T> {
 
 impl<T> SharedSlice<T> {
   pub fn slice(self, from_idx: usize, to_idx: usize) -> SharedSlice<T> {
-    /*assert!(from_idx <= self.len);
-    assert!(from_idx <= to_idx);
-    assert!(to_idx <= self.len);*/
     let s = &unsafe { from_raw_parts(self.ptr, self.len) }[from_idx .. to_idx];
     SharedSlice{
-      //ptr:  self.ptr.offset(from_idx as isize),
-      //len:  to_idx - from_idx,
       ptr:  s.as_ptr(),
       len:  s.len(),
       buf:  self.buf,
@@ -212,7 +205,7 @@ impl<T> Deref for SharedSlice<T> {
   }
 }
 
-pub struct RacingSlice<T> {
+/*pub struct RacingSlice<T> {
   ptr:  *mut T,
   len:  usize,
   buf:  Arc<Deref<Target=[T]>>,
@@ -230,111 +223,4 @@ impl<T> RacingSlice<T> {
   pub fn len(&self) -> usize {
     self.len
   }
-}
-
-/*pub struct RwSharedMem<T> {
-  buf:  Rc<RefCell<Box<DerefMut<Target=[T]>>>>,
-}
-
-impl<T> RwSharedMem<T> {
-  pub fn new<Buf>(buf: Buf) -> RwSharedMem<T> where Buf: 'static + DerefMut<Target=[T]> {
-    let buf: Box<DerefMut<Target=[T]>> = Box::new(buf);
-    RwSharedMem{buf: Rc::new(RefCell::new(buf))}
-  }
-
-  pub fn as_slice(&self) -> RoSharedSlice<T> {
-    let new_buf = self.buf.clone();
-    let s: &[T] = &**self.buf.borrow();
-    RoSharedSlice{
-      ptr:  s.as_ptr(),
-      len:  s.len(),
-      buf:  new_buf,
-    }
-  }
-
-  pub fn as_mut_slice(&self) -> MutSharedSlice<T> {
-    let new_buf = self.buf.clone();
-    let s: &mut [T] = &mut **self.buf.borrow_mut();
-    MutSharedSlice{
-      ptr:  s.as_mut_ptr(),
-      len:  s.len(),
-      buf:  new_buf,
-    }
-  }
-}
-
-#[derive(Clone)]
-pub struct RoSharedSlice<T> {
-  ptr:  *const T,
-  len:  usize,
-  buf:  Rc<RefCell<Box<DerefMut<Target=[T]>>>>,
-}
-
-impl<T> RoSharedSlice<T> {
-}
-
-#[derive(Clone)]
-pub struct MutSharedSlice<T> {
-  ptr:  *mut T,
-  len:  usize,
-  buf:  Rc<RefCell<Box<DerefMut<Target=[T]>>>>,
-}
-
-impl<T> MutSharedSlice<T> {
-}
-
-impl<T> Deref for MutSharedSlice<T> {
-  type Target = [T];
-
-  fn deref(&self) -> &[T] {
-    unsafe { from_raw_parts(self.ptr, self.len) }
-  }
-}
-
-impl<T> DerefMut for MutSharedSlice<T> {
-  fn deref_mut(&mut self) -> &mut [T] {
-    unsafe { from_raw_parts_mut(self.ptr, self.len) }
-  }
 }*/
-
-/*pub struct ConcurrentMem<T> {
-  buf:  Arc<Box<Deref<Target=[T]>>>,
-}
-
-impl<T> ConcurrentMem<T> {
-  pub fn new<Buf>(buf: Buf) -> ConcurrentMem<T> where Buf: 'static + Deref<Target=[T]> {
-    let buf: Box<Deref<Target=[T]>> = Box::new(buf);
-    ConcurrentMem{buf: Arc::new(buf)}
-  }
-
-  pub fn as_slice(&self) -> ConcurrentSlice<T> {
-    let new_buf = self.buf.clone();
-    let s: &[T] = &**self.buf;
-    ConcurrentSlice{
-      ptr:  s.as_ptr(),
-      len:  s.len(),
-      buf:  new_buf,
-    }
-  }
-
-  pub fn unsafe_as_racing_slice(&self) -> RacingSlice<T> {
-    let new_buf = self.buf.clone();
-    let s: &[T] = &**self.buf;
-    RacingSlice{
-      ptr:  s.as_ptr() as *mut T,
-      len:  s.len(),
-      buf:  new_buf,
-    }
-  }
-}
-
-pub struct ConcurrentSlice<T> {
-  ptr:  *const T,
-  len:  usize,
-  buf:  Arc<Box<Deref<Target=[T]>>>,
-}*/
-
-pub fn test() -> SharedMem<u8> {
-  let mem: SharedMem<u8> = SharedMem::new(vec![]);
-  mem
-}

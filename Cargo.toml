@@ -2,10 +2,14 @@
 name = "sharedmem"
 version = "0.1.0"
 authors = ["Peter Jin <peterhaijin@gmail.com>"]
+license = "BSD-2-Clause"
+description = "Shared memory primitives."
+keywords = ["shared", "memory", "shm", "shmem"]
+readme = "README.md"
 
 [lib]
 name = "sharedmem"
 path = "src/lib.rs"
 
 [dependencies]
-memmap = "*"
+memmap = "^0.5"
