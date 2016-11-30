@@ -183,8 +183,12 @@ impl<T> SharedMem<T> {
 pub struct SharedSlice<T> {
   ptr:  *const T,
   len:  usize,
-  buf:  Arc<Deref<Target=[T]>>,
+  buf:  Arc<Deref<Target=[T]> + Send + Sync>,
 }
+
+// XXX(20161129): Following is necessary because of the `*const T` field.
+unsafe impl<T> Send for SharedSlice<T> {}
+unsafe impl<T> Sync for SharedSlice<T> {}
 
 impl<T> SharedSlice<T> {
   pub fn slice(self, from_idx: usize, to_idx: usize) -> SharedSlice<T> {
