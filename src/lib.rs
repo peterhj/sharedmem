@@ -1,8 +1,13 @@
+#![feature(collections_bound)]
+#![feature(collections_range)]
+
 extern crate memmap;
 
 use memmap::{Mmap, Protection};
 
 use std::cell::{RefCell, Ref, RefMut};
+use std::collections::{Bound};
+use std::collections::range::{RangeArgument};
 use std::fs::{File};
 use std::marker::{PhantomData};
 use std::mem::{size_of};
@@ -128,13 +133,48 @@ impl<T> RwSlice<T> {
 
 #[derive(Clone)]
 pub struct SharedMem<T> {
+  ptr:  *const T,
+  len:  usize,
   buf:  Arc<Deref<Target=[T]> + Send + Sync>,
+}
+
+// XXX(20161129): Following is necessary because of the `*const T` field.
+unsafe impl<T> Send for SharedMem<T> {}
+unsafe impl<T> Sync for SharedMem<T> {}
+
+impl<T> Deref for SharedMem<T> {
+  type Target = [T];
+
+  fn deref(&self) -> &[T] {
+    unsafe { from_raw_parts(self.ptr, self.len) }
+  }
 }
 
 impl<T> SharedMem<T> {
   pub fn new<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> + Send + Sync {
     let buf: Arc<Deref<Target=[T]> + Send + Sync> = Arc::new(buf);
-    SharedMem{buf: buf}
+    let ptr = (*buf).as_ptr();
+    let len = (*buf).len();
+    SharedMem{ptr: ptr, len: len, buf: buf}
+  }
+
+  pub fn slice_v2<R>(&self, range: R) -> SharedMem<T> where R: RangeArgument<usize> {
+    let start = match range.start() {
+      Bound::Included(&idx) => idx,
+      Bound::Excluded(&idx) => idx + 1,
+      Bound::Unbounded      => 0,
+    };
+    let end = match range.start() {
+      Bound::Included(&idx) => idx + 1,
+      Bound::Excluded(&idx) => idx,
+      Bound::Unbounded      => self.len,
+    };
+    assert!(self.len >= end - start);
+    SharedMem{
+      ptr:  unsafe { self.ptr.offset(start as isize) },
+      len:  end - start,
+      buf:  self.buf.clone(),
+    }
   }
 
   pub fn as_slice(&self) -> SharedSlice<T> {
