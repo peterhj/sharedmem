@@ -150,6 +150,12 @@ impl<T> Deref for SharedMem<T> {
   }
 }
 
+impl<T> AsRef<[T]> for SharedMem<T> {
+  fn as_ref(&self) -> &[T] {
+    &*self
+  }
+}
+
 impl<T> SharedMem<T> {
   pub fn new<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> + Send + Sync {
     let buf: Arc<Deref<Target=[T]> + Send + Sync> = Arc::new(buf);
