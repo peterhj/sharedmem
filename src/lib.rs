@@ -170,7 +170,7 @@ impl<T> SharedMem<T> {
       Bound::Excluded(&idx) => idx + 1,
       Bound::Unbounded      => 0,
     };
-    let end = match range.start() {
+    let end = match range.end() {
       Bound::Included(&idx) => idx + 1,
       Bound::Excluded(&idx) => idx,
       Bound::Unbounded      => self.len,
