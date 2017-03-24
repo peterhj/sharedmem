@@ -132,6 +132,21 @@ impl<T> RwSlice<T> {
 }
 
 #[derive(Clone)]
+pub struct OpaqueSharedMem<T> {
+  ptr:  *const T,
+  len:  usize,
+  buf:  Arc<Deref<Target=[T]> + Send + Sync>,
+}
+
+impl<T> Deref for OpaqueSharedMem<T> {
+  type Target = [T];
+
+  fn deref(&self) -> &[T] {
+    unsafe { from_raw_parts(self.ptr, self.len) }
+  }
+}
+
+#[derive(Clone)]
 pub struct SharedMem<T> {
   ptr:  *const T,
   len:  usize,
@@ -153,6 +168,16 @@ impl<T> Deref for SharedMem<T> {
 impl<T> AsRef<[T]> for SharedMem<T> {
   fn as_ref(&self) -> &[T] {
     &*self
+  }
+}
+
+impl<T> SharedMem<T> where T: 'static {
+  pub fn opaque(&self) -> Arc<Deref<Target=[T]>> {
+    Arc::new(OpaqueSharedMem{
+      ptr:  self.ptr,
+      len:  self.len,
+      buf:  self.buf.clone(),
+    })
   }
 }
 
