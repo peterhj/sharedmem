@@ -189,7 +189,7 @@ impl<T> SharedMem<T> {
     SharedMem{ptr: ptr, len: len, buf: buf}
   }
 
-  pub fn slice_v2<R>(&self, range: R) -> SharedMem<T> where R: RangeArgument<usize> {
+  pub fn shared_slice<R>(&self, range: R) -> SharedMem<T> where R: RangeArgument<usize> {
     let start = match range.start() {
       Bound::Included(&idx) => idx,
       Bound::Excluded(&idx) => idx + 1,
@@ -200,7 +200,9 @@ impl<T> SharedMem<T> {
       Bound::Excluded(&idx) => idx,
       Bound::Unbounded      => self.len,
     };
-    assert!(self.len >= end - start);
+    assert!(start <= self.len);
+    assert!(end <= self.len);
+    assert!(start <= end);
     SharedMem{
       ptr:  unsafe { self.ptr.offset(start as isize) },
       len:  end - start,
@@ -208,7 +210,7 @@ impl<T> SharedMem<T> {
     }
   }
 
-  pub fn as_slice(&self) -> SharedSlice<T> {
+  /*pub fn as_slice(&self) -> SharedSlice<T> {
     let s: &[T] = &**self.buf;
     SharedSlice{
       ptr:  s.as_ptr(),
@@ -226,7 +228,7 @@ impl<T> SharedMem<T> {
       len:  s_len,
       buf:  self.buf.clone(),
     }
-  }
+  }*/
 
   /*pub fn unsafe_as_slice(&self) -> RacingSlice<T> {
     let new_buf = self.buf.clone();
