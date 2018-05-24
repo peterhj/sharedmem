@@ -18,6 +18,7 @@ impl SpinBarrier {
   pub fn wait(&self) -> bool {
     let prev_epoch = self.epoch.load(Ordering::SeqCst);
     let tid = self.counter.fetch_add(1, Ordering::SeqCst);
+    assert!(tid < self.num_thrs);
     if tid == self.num_thrs - 1 {
       self.counter.store(0, Ordering::SeqCst);
       self.epoch.fetch_add(1, Ordering::SeqCst);

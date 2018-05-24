@@ -1,3 +1,4 @@
+#![feature(align_offset)]
 #![feature(collections_bound)]
 #![feature(collections_range)]
 
@@ -10,7 +11,7 @@ use std::collections::{Bound};
 use std::collections::range::{RangeArgument};
 use std::fs::{File};
 use std::marker::{PhantomData};
-use std::mem::{size_of};
+use std::mem::{align_of, size_of};
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
@@ -38,12 +39,20 @@ impl MemoryMap<u8> {
   }
 }
 
+impl<T> AsRef<[T]> for MemoryMap<T> where T: Copy {
+  fn as_ref(&self) -> &[T] {
+    let raw_s = unsafe { self.map.as_slice() };
+    assert_eq!(0, raw_s.as_ptr().align_offset(align_of::<T>()));
+    assert_eq!(0, raw_s.len() % size_of::<T>());
+    unsafe { from_raw_parts(raw_s.as_ptr() as *const T, raw_s.len() / size_of::<T>()) }
+  }
+}
+
 impl<T> Deref for MemoryMap<T> where T: Copy {
   type Target = [T];
 
   fn deref(&self) -> &[T] {
-    let raw_s = unsafe { self.map.as_slice() };
-    unsafe { from_raw_parts(raw_s.as_ptr() as *const T, raw_s.len() / size_of::<T>()) }
+    self.as_ref()
   }
 }
 
@@ -157,17 +166,17 @@ pub struct SharedMem<T> {
 unsafe impl<T> Send for SharedMem<T> {}
 unsafe impl<T> Sync for SharedMem<T> {}
 
-impl<T> Deref for SharedMem<T> {
-  type Target = [T];
-
-  fn deref(&self) -> &[T] {
+impl<T> AsRef<[T]> for SharedMem<T> {
+  fn as_ref(&self) -> &[T] {
     unsafe { from_raw_parts(self.ptr, self.len) }
   }
 }
 
-impl<T> AsRef<[T]> for SharedMem<T> {
-  fn as_ref(&self) -> &[T] {
-    &*self
+impl<T> Deref for SharedMem<T> {
+  type Target = [T];
+
+  fn deref(&self) -> &[T] {
+    self.as_ref()
   }
 }
 
