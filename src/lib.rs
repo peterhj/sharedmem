@@ -8,11 +8,10 @@ use memmap::{Mmap, Protection};
 
 use std::cell::{RefCell, Ref, RefMut};
 use std::collections::{Bound};
-use std::collections::range::{RangeArgument};
 use std::fs::{File};
 use std::marker::{PhantomData};
 use std::mem::{align_of, size_of};
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, RangeBounds};
 use std::rc::{Rc};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 use std::sync::{Arc};
@@ -198,7 +197,7 @@ impl<T> SharedMem<T> {
     SharedMem{ptr: ptr, len: len, buf: buf}
   }
 
-  pub fn shared_slice<R>(&self, range: R) -> SharedMem<T> where R: RangeArgument<usize> {
+  pub fn shared_slice<R>(&self, range: R) -> SharedMem<T> where R: RangeBounds<usize> {
     let start = match range.start() {
       Bound::Included(&idx) => idx,
       Bound::Excluded(&idx) => idx + 1,
