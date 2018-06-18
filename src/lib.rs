@@ -198,12 +198,12 @@ impl<T> SharedMem<T> {
   }
 
   pub fn shared_slice<R>(&self, range: R) -> SharedMem<T> where R: RangeBounds<usize> {
-    let start = match range.start() {
+    let start = match range.start_bound() {
       Bound::Included(&idx) => idx,
       Bound::Excluded(&idx) => idx + 1,
       Bound::Unbounded      => 0,
     };
-    let end = match range.end() {
+    let end = match range.end_bound() {
       Bound::Included(&idx) => idx + 1,
       Bound::Excluded(&idx) => idx,
       Bound::Unbounded      => self.len,
