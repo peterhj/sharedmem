@@ -190,11 +190,21 @@ impl<T> SharedMem<T> where T: 'static {
 }
 
 impl<T> SharedMem<T> {
-  pub fn new<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> + Send + Sync {
-    let buf: Arc<Deref<Target=[T]> + Send + Sync> = Arc::new(buf);
-    let ptr = (*buf).as_ptr();
-    let len = (*buf).len();
-    SharedMem{ptr: ptr, len: len, buf: buf}
+  pub fn new(buf: Arc<Deref<Target=[T]> + Send + Sync>) -> SharedMem<T> {
+    let (ptr, len) = {
+      let slice: &[T] = &*buf;
+      (slice.as_ptr(), slice.len())
+    };
+    SharedMem{ptr, len, buf}
+  }
+
+  pub fn from<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> + Send + Sync {
+    let buf = Arc::new(buf);
+    SharedMem::new(buf)
+  }
+
+  pub unsafe fn from_raw(ptr: *const T, len: usize, buf: Arc<Deref<Target=[T]> + Send + Sync>) -> SharedMem<T> {
+    SharedMem{ptr, len, buf}
   }
 
   pub fn shared_slice<R>(&self, range: R) -> SharedMem<T> where R: RangeBounds<usize> {
