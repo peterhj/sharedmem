@@ -6,6 +6,7 @@ extern crate memmap;
 
 use memmap::{Mmap, Protection};
 
+use std::any::{Any};
 use std::cell::{RefCell, Ref, RefMut};
 use std::collections::{Bound};
 use std::fs::{File};
@@ -158,7 +159,8 @@ impl<T> Deref for OpaqueSharedMem<T> {
 pub struct SharedMem<T> {
   ptr:  *const T,
   len:  usize,
-  buf:  Arc<Deref<Target=[T]> + Send + Sync>,
+  //buf:  Arc<Deref<Target=[T]> + Send + Sync>,
+  buf:  Arc<Any + Send + Sync>,
 }
 
 // XXX(20161129): Following is necessary because of the `*const T` field.
@@ -179,7 +181,7 @@ impl<T> Deref for SharedMem<T> {
   }
 }
 
-impl<T> SharedMem<T> where T: 'static {
+/*impl<T> SharedMem<T> where T: 'static {
   pub fn opaque(&self) -> Arc<Deref<Target=[T]>> {
     Arc::new(OpaqueSharedMem{
       ptr:  self.ptr,
@@ -187,23 +189,41 @@ impl<T> SharedMem<T> where T: 'static {
       buf:  self.buf.clone(),
     })
   }
+}*/
+
+impl SharedMem<u8> {
+  pub fn as_typed_slice<T: Copy>(&self) -> SharedMem<T> {
+    let num_elems = self.len / size_of::<T>();
+    assert_eq!(0, self.len % size_of::<T>());
+    assert_eq!(0, self.ptr.align_offset(align_of::<T>()));
+    SharedMem{
+      ptr: self.ptr as *const T,
+      len: num_elems,
+      buf: self.buf.clone(),
+    }
+  }
 }
 
 impl<T> SharedMem<T> {
-  pub fn new(buf: Arc<Deref<Target=[T]> + Send + Sync>) -> SharedMem<T> {
+  /*pub fn new(buf: Arc<Deref<Target=[T]> + Send + Sync>) -> SharedMem<T> {
     let (ptr, len) = {
       let slice: &[T] = &*buf;
       (slice.as_ptr(), slice.len())
     };
     SharedMem{ptr, len, buf}
-  }
+  }*/
 
   pub fn from<Buf>(buf: Buf) -> SharedMem<T> where Buf: 'static + Deref<Target=[T]> + Send + Sync {
+    let (ptr, len) = {
+      let slice: &[T] = &*buf;
+      (slice.as_ptr(), slice.len())
+    };
     let buf = Arc::new(buf);
-    SharedMem::new(buf)
+    unsafe { SharedMem::from_raw(ptr, len, buf) }
   }
 
-  pub unsafe fn from_raw(ptr: *const T, len: usize, buf: Arc<Deref<Target=[T]> + Send + Sync>) -> SharedMem<T> {
+  //pub unsafe fn from_raw(ptr: *const T, len: usize, buf: Arc<Deref<Target=[T]> + Send + Sync>) -> SharedMem<T> {
+  pub unsafe fn from_raw(ptr: *const T, len: usize, buf: Arc<Any + Send + Sync>) -> SharedMem<T> {
     SharedMem{ptr, len, buf}
   }
 
