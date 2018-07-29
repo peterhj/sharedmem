@@ -13,4 +13,4 @@ name = "sharedmem"
 path = "src/lib.rs"
 
 [dependencies]
-memmap = "^0.5"
+memmap = "^0.6"
